@@ -416,7 +416,7 @@ git remote -v # remoteさきの詳細情報も
 git remote add upstream git@github.com:<original-name>/<repo>.git
 # upstreamという名前じゃなくても良い
 ```
-リモート先が新たにできたら、そこからfetchしてそのリポジトリの情報をローカルに落とせる
+リモート先が新たにできたら、fetchしてそのリポジトリの情報をローカルに落とせる
 
 ```
 git fetch upstream
