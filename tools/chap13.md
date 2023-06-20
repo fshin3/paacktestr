@@ -185,43 +185,261 @@ Rパッケージ開発に関しては、NAMESPACEとman/ディレクトリを無
 
 # 13.8　間違いの取り消し
 
-## 間違いの取り消し可能で後戻りできるから嬉しいね
+## 後戻りできるから嬉しいね
 
 - 修正したばかりの内容の取り消しは右クリックの「revert」
-まちがえるのこれから
+  - リバートのやり直しはできない
+- diffウインドウでも解くてファイルの変更を取り消せる
+
+どっちのやり直しも、Rstudioの編集画面でやり直し前の表示にはできる（Ctrl (Cmd) +z）
+
+- まだ早い段階でコミットしてしまった場合（コミットしたけどコミットコメントの内容に追いついていないとか）、１つ前のコミットを修正して追加の変更をステージング
+  - コミットボタンをクリックする前にAmend previous commitを選択
+  - ただし、1つまえのコミットをGitHubにpushした場合はやっちゃダメ
+  
+- 間違いと特定しにくい場合は履歴を遡る
+  - GitペインでHistoryをクリックして確認
+    - SHA,作者、日付、元になるコミット、そのコミットの変更内容が表示
+  - 間違いが発生したところまで遡ってSHAを書き留める
+  
+- シェルで間違いが発生する前のSHAが使える
+  - その古いコードをコピペ
+```
+git show <SHA> <filename>
+```
+  - あるいは過去のバージョンを今のバージョンにコピー
+```
+git checkout <SHA> <filename>
+```
+
+これでもダメな場合も手はある
 
 ---
 
 # 13.9　GitHubとの同期
 
+## GitHubで他の開発者と自分のコードを共有してこそGitが輝く
+
+まずはpush
+1. GitHubに新しいリポジトリを作る
+  - リポジトリ名はパッケージと同じ名前として、パッケージのタイトルをリポジトリの説明に記載
+  - それ以外はそのままでSubmit
+2. シェルで新しいリポジトリのページに記載されている説明に従う
+```
+git remote add origin git@github.com:<user-name>/<repositoryname>.git
+git push -u origin main
+```
+
+新しくコミットして、リモートリポジトリが更新されることを確認してみよう
+
+1. DESCRIPTIONファイルを修正し、URLとBugReportsフィールドを追加、GitHubサイトとリンクさせる
+  - dplyrの場合
+```
+URL: hhtp;//github.com/hadley/dplyr
+BugReports: http://github.com/hadley/dplyr/issues
+```
+2. 修正したファイルを保存してコミット
+3. pushをクリックしてGitHubに変更をpush (シェルでgit pushしたのと同じ)
+4. GitHubページでDESCRIPTIONを確認
+
+pushの回数はcommitの回数よりも少ない（複数のコミットをpushでGitHubにもっていける）
+
+pushされたコードは公開されている、ということなので、動作するものをpushしよう
+
+**pushするまえにR CMD checkを実行することをお勧め**
+
 ---
 
 # 13.10　GitHub利用のメリット
+
+## メリットたくさん
+- まともなWebサイト
+  - Readmeをつくるとさらに良い
+- インストールしやすい
+```
+devtools::install_github("<user-name>/<package-name>")
+```
+- コミットの履歴を確認することができる
+- ファイルの履歴を簡単に見られる
+- RstudioのメインツールバーのGitドロップダウンメニュー（どこ？）からページに直接飛べる
+- コミットに対してコメントできる
 
 ---
 
 # 13.11　共同作業
 
+## まずはpullしてからね
+- 他の開発者の変更点をローカルで確認するにはpullする必要がある
+- pullするとすべての変更内容をダウンロードして変更内容を取り込み、自分が行った変更内容とそれらをマージする（fetch & mergeでもおk）
+  - マージは元となるバージョンが２つあるコミットになる（２つの異なる系統の開発内容を組み合わせて１つにする）
+  - 変更内容が１つのファイルの同じ場所に対して行われた場合、マージの衝突（コンフリクト）を自分で解決する
+  - RStudioでは以下の時にマージのコンフリクトが通知される
+    - pullがエラーで失敗した時
+    - Gitペインで、U U の状態になった時
+
+- Rstudioではマージのコンフリクトをサポートするツールがない（？）
+- 何もしなくても以下のような表示になる
+```
+<<<<<<<HEAD
+>>>>>>>remote
+```
+   上部には自分が行ったローカルの変更
+   
+   下部はGitHubからpullしたリモートの変更
+
+```
+git config --global merge.conflictstyle diff3
+```
+
+をすると
+
+```
+<<<<<<<HEAD
+||||||| merged common ancestors
+=======
+>>>>>>>remote
+```
+   真ん中にはコードが２系統に分岐する前の最後のコミット
+
+となる
+
+- コンフリクト部分に目を通してどれが良いかを決めて編集
+- このファイルをステージングすると前にすべての衝突マーカーが消えていることを確認
+- すべてのコンフリクトを修正した後には新しくコミットしてGitHub にpush
+
+- roxygenで生成したテキストを修正するときのポイント（document()で生成されるファイルに手をつけるな）
+  - man/*.Rd ファイルの問題は修正しない
+    - 元になっているroxygenコメントのコンフリクトを解決し、パッケージのドキュメントを再生成
+  - NAMESPACEファイルのコンフリクトをマージすると、パッケージのリロードやドキュメントの再生成の障害
+    - パッケージのロードができるようなコンフリクトの解決を行い、その後に正しいNAMESPACEファイルを生成するためにドキュメントを再生成
+
+困ったら
+```
+git merge --abort
+```
+をしていったんマージを中止
+
 ---
 
 # 13.12　issue
 
+## issueから始めよ、と誰かが言っていた
+- バグに遭遇したらissueページにメモしておこう
+- issueが50個￥を超えたらmilestoneやtag、特定の人へのissueのアサインをすると良い
+- issueに関するGitHunガイドラインを読むと良い
+- コミットメッセージからissueをクローズすると便利
+```
+Close #<issue number>
+```
+という文をコミットメッセージのどこかに書くとGitHubはpush時にそのissueをCloseする
+  - これをするとissueページからそのコミットに対してリンクが貼られる
+  - #<issue number>とするとクローズはしないが参照をすることができる
 
----
+- 15.5.3にあるように NEWS.mdに箇条書きを追加するのが良い
 
 # 13.13　branch
+
+## branchとpull requestでスムーズな開発を
+
+開発の本流を邪魔せずに課題を解決して閾値とき、ブランチを切って作業する
+
+ターミナルでbranchを確認
+```
+git branch
+```
+複数のブランチがあるという仮定でpullをするとき、fetch & mergeする
+
+```
+git fetch origin main
+```
+これでGitHunのmainブランチの情報をローカルにおとす
+
+```
+git merge origi/main
+```
+これでリモート(origin)とローカルをマージ
+
+新しいブランチを作るとき
+```
+git checkout -b <branch-name>
+```
+これで<branch-name>のブランチを作成して、そのブランチに切り替える
+mainに戻りたいとき(すでにあるブランチに対しては -b は要らない)
+```
+git checkout main
+```
+
+新しくブランチを切った場合、RstudioからGitHubへの同期をするときには
+```
+git push --set-upstream origin <branch-name>
+```
+をしてGitHubでもブランチが同期するようにする
+
+ブランチで行った作業をメインのブランチに統合する場合
+```
+git merge main
+```
+
+mainブランチに移動した後、作業内容をmainに統合
+```
+git checkout main 
+git merge <branch-name>
+git branch -d <branch-name>
+```
+ブランチの役目が終わったら消す
 
 ---
 
 # 13.14　pull request作成
 
+## GitHub上にブランチでの開発情報を残す
+
+
 ---
 
 # 13.15　pull requestを送る
 
+## 他の人のリポジトリをforkしてgit clone
+
+- GitHubで他の人のリポジトリの画面で「Fork」をクリック、自分のリポジトリにコピー
+- forkしたリポジトリをクローンしてローカルコピーを作成（ターミナル作業は以下）
+```
+git clone git@github.com:<user-nama>/<repo>.git
+cd <repo>
+```
+
+- リモートはoriginで自分のGitHubしかないので、fork先をremoteに加える
+```
+git remote # remoteがoriginのほかにどこがあるか表示
+git remote -v # remoteさきの詳細情報も
+
+git remote add upstream git@github.com:<original-name>/<repo>.git
+# upstreamという名前じゃなくても良い
+```
+リモート先が新たにできたら、そこからfetchしてそのリポジトリの情報をローカルに落とせる
+
+```
+git fetch upstream
+```
+
+おとしてきたupstream の情報から使いたいブランチ(一般にはmain)をmerge
+```
+git merge upstream/main
+```
+
+frasyrだと開発はdevブランチなので、ローカルにdevブランチを作ってupstream/devをマージ、そこからブランチを切って開発
+
+
 ---
 
 # 13.16　pull request（をレビューしてから）の承認
+
+## プルリクの中身を精査
+ポイントは
+
+- 良いアイデアか
+- 全体的なアプローチが妥当か
+- 洗練されているか
 
 ---
 
